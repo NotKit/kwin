@@ -234,7 +234,9 @@ bool EglGbmBackend::swapBuffers(DrmAbstractOutput *drmOutput, const QRegion &dir
 {
     Q_ASSERT(m_outputs.contains(drmOutput));
     Output &output = m_outputs[drmOutput];
-    renderFramebufferToSurface(output);
+    if (output.current.shadowBuffer) {
+        output.current.shadowBuffer->render(output.output);
+    }
     if (output.current.gbmSurface->swapBuffers()) {
         cleanupRenderData(output.old);
         updateBufferAge(output, dirty);
@@ -350,16 +352,6 @@ QSharedPointer<DrmBuffer> EglGbmBackend::importFramebuffer(Output &output, const
     // try again with XRGB8888, the most universally supported basic format
     output.forceXrgb8888 = true;
     return nullptr;
-}
-
-void EglGbmBackend::renderFramebufferToSurface(Output &output)
-{
-    if (!output.current.shadowBuffer) {
-        // No additional render target.
-        return;
-    }
-    output.current.gbmSurface->makeContextCurrent();
-    output.current.shadowBuffer->render(output.output);
 }
 
 bool EglGbmBackend::initBufferConfigs()
@@ -579,7 +571,9 @@ QSharedPointer<DrmBuffer> EglGbmBackend::endFrameWithBuffer(AbstractOutput *drmO
     Q_ASSERT(m_outputs.contains(drmOutput));
     Output &output = m_outputs[drmOutput];
     if (isPrimary()) {
-        renderFramebufferToSurface(output);
+        if (output.current.shadowBuffer) {
+            output.current.shadowBuffer->render(output.output);
+        }
         auto buffer = output.current.gbmSurface->swapBuffersForDrm();
         if (buffer) {
             updateBufferAge(output, dirty);
